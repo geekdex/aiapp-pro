@@ -6,7 +6,6 @@ import { Category, CategoryTabItem, SystemConfig, Tool } from '@/types';
 import { CATEGORY_ICON_MAP } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
 import { Hero } from '@/components/Hero';
-import { CategoryTabs } from '@/components/CategoryTabs';
 import { ToolCard } from '@/components/ToolCard';
 import { SearchModal } from '@/components/SearchModal';
 import { Footer } from '@/components/Footer';
@@ -73,18 +72,20 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
     return counts;
   }, [initialTools]);
 
-  // Format Category Tabs
+  // Format Category Tabs (Only include categories with at least 1 tool)
   const categoryTabItems: CategoryTabItem[] = useMemo(() => {
-    return categories.map((cat) => {
-      const slug = cat.data?.slug || `cat-${cat.id}`;
-      return {
-        id: cat.id,
-        name: cat.data?.name || '未命名分类',
-        slug,
-        icon: CATEGORY_ICON_MAP[slug] || '🔖',
-        count: categoryCounts[cat.id] || 0,
-      };
-    });
+    return categories
+      .map((cat) => {
+        const slug = cat.data?.slug || `cat-${cat.id}`;
+        return {
+          id: cat.id,
+          name: cat.data?.name || '未命名分类',
+          slug,
+          icon: CATEGORY_ICON_MAP[slug] || '🔖',
+          count: categoryCounts[cat.id] || 0,
+        };
+      })
+      .filter((cat) => cat.count > 0);
   }, [categories, categoryCounts]);
 
   // Map category slug to id
@@ -147,26 +148,16 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
       {/* Navbar */}
       <Navbar onOpenSearch={() => setSearchModalOpen(true)} />
 
-      {/* Hero Section */}
+      {/* Hero Section with Integrated Category Filter */}
       <Hero
         totalTools={initialTools.length}
-        onOpenSearch={() => setSearchModalOpen(true)}
-        onSelectCategory={(slug) => {
-          handleSelectCategory(slug);
-          const el = document.getElementById('categories');
-          el?.scrollIntoView({ behavior: 'smooth' });
-        }}
-      />
-
-      {/* Category Tabs */}
-      <CategoryTabs
         categories={categoryTabItems}
         selectedSlug={selectedSlug}
-        onSelect={handleSelectCategory}
+        onSelectCategory={handleSelectCategory}
       />
 
       {/* Main Tool Grid Section */}
-      <main className="flex-1 mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-8 sm:py-10 w-full relative z-10">
+      <main id="tools-section" className="flex-1 mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-12 sm:pb-16 w-full relative z-10">
         {/* Section Header & In-page Filter */}
         <div className="mb-6 sm:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-white/[0.06]">
           <div className="flex items-center gap-3">
@@ -179,6 +170,16 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
                 <span className="rounded-full bg-slate-200/70 dark:bg-white/[0.08] px-2 py-0.5 text-xs font-mono text-indigo-600 dark:text-indigo-300 border border-slate-300/60 dark:border-white/[0.06]">
                   {filteredTools.length} 款
                 </span>
+                {selectedSlug !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCategory('all')}
+                    className="text-xs font-normal text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 hover:underline cursor-pointer ml-1 inline-flex items-center gap-0.5"
+                    title="重置为全部工具"
+                  >
+                    <span>(清除分类)</span>
+                  </button>
+                )}
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 点击工具卡片查看详情与实操指南，或直接直达官方网站
