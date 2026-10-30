@@ -2,16 +2,31 @@ export interface CategoryData {
   name: string;
   slug?: string;
   sort_order?: number;
+  count?: number;
 }
 
 export interface Category {
   id: number;
-  model_id: number;
-  system_id: string;
-  model_slug: string;
+  model_id?: number;
+  system_id?: string;
+  model_slug?: string;
   data: CategoryData;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
+  count?: number;
+}
+
+export interface CategoryWithCountItem {
+  id: number;
+  name: string;
+  slug: string;
+  sort_order: number;
+  count: number;
+}
+
+export interface CategoriesWithCountsData {
+  categories: CategoryWithCountItem[];
+  total_tools: number;
 }
 
 export interface ToolData {

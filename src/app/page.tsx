@@ -32,10 +32,10 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function HomePage() {
-  // Fetch categories, all tools, and system compliance configs server-side
+  // Fetch categories (with counts), page 1 tools (max 100), and system configs
   const [categories, toolsResult, systemConfig] = await Promise.all([
     getCategories(),
-    getTools({ page: 1, pageSize: 2000 }),
+    getTools({ page: 1, pageSize: 100 }),
     getSystemConfig(),
   ]);
 
@@ -44,6 +44,7 @@ export default async function HomePage() {
       <HomeClient
         categories={categories}
         initialTools={toolsResult.items}
+        initialPagination={toolsResult.pagination}
         systemConfig={systemConfig}
       />
     </Suspense>

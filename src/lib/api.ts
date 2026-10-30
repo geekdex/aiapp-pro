@@ -1,4 +1,11 @@
-import { ApiResponse, Category, PaginatedData, SystemConfig, Tool } from '@/types';
+import {
+  ApiResponse,
+  CategoriesWithCountsData,
+  Category,
+  PaginatedData,
+  SystemConfig,
+  Tool,
+} from '@/types';
 import { FALLBACK_CATEGORIES, FALLBACK_SYSTEM_CONFIG, FALLBACK_TOOLS } from '@/lib/mock-data';
 
 /**
@@ -13,6 +20,22 @@ function getApiBaseUrl(): string | null {
   }
 
   return raw.trim().replace(/\/+$/, '');
+}
+
+/**
+ * Resolve the custom Extension API base URL (e.g. http://localhost:8080/api/ext/aiapp).
+ */
+function getExtApiBaseUrl(): string | null {
+  const baseUrl = getApiBaseUrl();
+  if (!baseUrl) {
+    return null;
+  }
+
+  if (baseUrl.includes('/api/s/')) {
+    return baseUrl.replace(/\/api\/s\//, '/api/ext/');
+  }
+
+  return `${baseUrl}/ext`;
 }
 
 /**
@@ -42,7 +65,6 @@ export const CATEGORY_ICON_MAP: Record<string, string> = {
 async function foundryFetch<T>(path: string, options: RequestInit = {}): Promise<T | null> {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) {
-    // Return null if API address is not configured in environment
     return null;
   }
 
@@ -58,7 +80,6 @@ async function foundryFetch<T>(path: string, options: RequestInit = {}): Promise
     const res = await fetch(url, {
       ...options,
       headers,
-      // Revalidate every 60 seconds (ISR / EdgeOne cache friendly)
       next: { revalidate: 60 },
     });
 
@@ -75,15 +96,73 @@ async function foundryFetch<T>(path: string, options: RequestInit = {}): Promise
 
     return json.data;
   } catch {
-    // Backend service may not be running locally; will use fallback data
+    return null;
+  }
+}
+
+async function foundryExtFetch<T>(path: string, options: RequestInit = {}): Promise<T | null> {
+  const extBaseUrl = getExtApiBaseUrl();
+  if (!extBaseUrl) {
+    return null;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = `${extBaseUrl}${normalizedPath}`;
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {}),
+      ...((options.headers as Record<string, string>) || {}),
+    };
+
+    const res = await fetch(url, {
+      ...options,
+      headers,
+      next: { revalidate: 60 },
+    });
+
+    if (!res.ok) {
+      console.warn(`[Foundry Ext API] HTTP ${res.status} on ${path}`);
+      return null;
+    }
+
+    const json: ApiResponse<T> = await res.json();
+    if (json.code !== 0) {
+      console.warn(`[Foundry Ext API] Error code ${json.code}: ${json.message}`);
+      return null;
+    }
+
+    return json.data;
+  } catch {
     return null;
   }
 }
 
 /**
- * Fetch all categories, sorted by sort_order
+ * Fetch all categories with live tool counts, sorted by sort_order
  */
 export async function getCategories(): Promise<Category[]> {
+  // 1. Try fetching from custom extension endpoint (/api/ext/aiapp/categories)
+  const extData = await foundryExtFetch<CategoriesWithCountsData>('/categories');
+  if (extData && extData.categories && extData.categories.length > 0) {
+    return extData.categories.map((c) => ({
+      id: c.id,
+      model_id: 1,
+      system_id: 'aiapp',
+      model_slug: 'categories',
+      count: c.count,
+      data: {
+        name: c.name,
+        slug: c.slug,
+        sort_order: c.sort_order,
+        count: c.count,
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+  }
+
+  // 2. Fallback to standard AutoCRUD endpoint
   const data = await foundryFetch<PaginatedData<Category>>('/categories?page=1&page_size=100');
 
   if (!data || !data.items || data.items.length === 0) {
@@ -98,37 +177,71 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 /**
- * Fetch tools with pagination and optional search
+ * Fetch tools with pagination, optional category filter, search, and sorting
  */
 export async function getTools(
   params: {
     page?: number;
     pageSize?: number;
+    categoryId?: number;
+    categorySlug?: string;
+    search?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   } = {}
 ): Promise<PaginatedData<Tool>> {
-  const page = params.page || 1;
-  const pageSize = params.pageSize || 100;
+  const page = Math.max(1, params.page || 1);
+  const pageSize = Math.min(100, Math.max(1, params.pageSize || 20));
 
   const queryParams = new URLSearchParams({
     page: String(page),
     page_size: String(pageSize),
   });
 
+  if (params.categoryId) queryParams.set('category_id', String(params.categoryId));
+  if (params.categorySlug && params.categorySlug !== 'all') {
+    queryParams.set('category_slug', params.categorySlug);
+  }
+  if (params.search && params.search.trim()) {
+    queryParams.set('search', params.search.trim());
+  }
   if (params.sortBy) queryParams.set('sort_by', params.sortBy);
   if (params.sortOrder) queryParams.set('sort_order', params.sortOrder);
 
+  // 1. Try extension API first
+  const extData = await foundryExtFetch<PaginatedData<Tool>>(`/tools?${queryParams.toString()}`);
+  if (extData && extData.items) {
+    return extData;
+  }
+
+  // 2. Fallback to standard AutoCRUD endpoint
   const data = await foundryFetch<PaginatedData<Tool>>(`/tools?${queryParams.toString()}`);
 
   if (!data || !data.items || data.items.length === 0) {
+    const filteredFallback = FALLBACK_TOOLS.filter((t) => {
+      if (params.categorySlug && params.categorySlug !== 'all') {
+        const cat = FALLBACK_CATEGORIES.find((c) => c.data.slug === params.categorySlug);
+        if (cat && t.data.category_id !== cat.id) return false;
+      }
+      if (params.categoryId && t.data.category_id !== params.categoryId) return false;
+      if (params.search && params.search.trim()) {
+        const q = params.search.toLowerCase().trim();
+        const title = (t.data.title || '').toLowerCase();
+        const desc = (t.data.description || '').toLowerCase();
+        if (!title.includes(q) && !desc.includes(q)) return false;
+      }
+      return true;
+    });
+
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
     return {
-      items: FALLBACK_TOOLS,
+      items: filteredFallback.slice(start, end),
       pagination: {
-        page: 1,
+        page,
         page_size: pageSize,
-        total: FALLBACK_TOOLS.length,
-        total_pages: 1,
+        total: filteredFallback.length,
+        total_pages: Math.max(1, Math.ceil(filteredFallback.length / pageSize)),
       },
     };
   }

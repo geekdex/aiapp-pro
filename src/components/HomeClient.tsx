@@ -1,23 +1,37 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Category, CategoryTabItem, SystemConfig, Tool } from '@/types';
+import { Category, CategoryTabItem, Pagination, SystemConfig, Tool } from '@/types';
 import { CATEGORY_ICON_MAP } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
 import { Hero } from '@/components/Hero';
 import { ToolCard } from '@/components/ToolCard';
 import { SearchModal } from '@/components/SearchModal';
 import { Footer } from '@/components/Footer';
-import { Sparkles, Layers, Search, SlidersHorizontal } from 'lucide-react';
+import {
+  Sparkles,
+  Layers,
+  Search,
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+} from 'lucide-react';
 
 interface HomeClientProps {
   categories: Category[];
   initialTools: Tool[];
+  initialPagination?: Pagination;
   systemConfig?: SystemConfig;
 }
 
-export function HomeClient({ categories, initialTools, systemConfig }: HomeClientProps) {
+export function HomeClient({
+  categories,
+  initialTools,
+  initialPagination,
+  systemConfig,
+}: HomeClientProps) {
   const searchParams = useSearchParams();
   const catParam = searchParams.get('cat');
   const searchParam = searchParams.get('search');
@@ -27,7 +41,31 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
 
   const [searchModalOpen, setSearchModalOpen] = useState<boolean>(() => searchParam === 'open');
   const [quickFilter, setQuickFilter] = useState<string>('');
+  const [debouncedFilter, setDebouncedFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<'default' | 'name' | 'newest'>('default');
+
+  // Tools & Pagination State
+  const [tools, setTools] = useState<Tool[]>(initialTools);
+  const [pagination, setPagination] = useState<Pagination>(() => {
+    if (initialPagination) return initialPagination;
+    return {
+      page: 1,
+      page_size: 100,
+      total: initialTools.length,
+      total_pages: Math.max(1, Math.ceil(initialTools.length / 100)),
+    };
+  });
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const isInitialMount = useRef<boolean>(true);
+
+  // Debounce quick filter input to avoid excessive requests
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFilter(quickFilter);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [quickFilter]);
 
   // Global Command+K (Mac) and Ctrl+K (Windows/Linux) shortcut listener in capture phase
   useEffect(() => {
@@ -46,6 +84,88 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, []);
 
+  // Fetch tools with server-side pagination & filter
+  const fetchToolsData = useCallback(
+    async (slug: string, page: number, search: string, sort: string) => {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          page_size: '100',
+        });
+        if (slug !== 'all') {
+          params.set('category_slug', slug);
+        }
+        if (search.trim()) {
+          params.set('search', search.trim());
+        }
+        if (sort !== 'default') {
+          params.set('sort_by', sort);
+        }
+
+        const res = await fetch(`/api/tools?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.items) {
+            setTools(data.items);
+            if (data.pagination) {
+              setPagination(data.pagination);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load tools:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  // Smooth scroll to tools section on page change
+  const scrollToToolsSection = () => {
+    if (typeof window !== 'undefined') {
+      const el = document.getElementById('tools-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
+
+  // Trigger fetch when category, debounced search, or sort changes
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      // Skip initial fetch if using default 'all' view with initial tools
+      if (selectedSlug === 'all' && !debouncedFilter && sortBy === 'default') {
+        return;
+      }
+    }
+
+    setCurrentPage(1);
+    fetchToolsData(selectedSlug, 1, debouncedFilter, sortBy);
+  }, [selectedSlug, debouncedFilter, sortBy, fetchToolsData]);
+
+  // Handle Page navigation
+  const handleGoToPage = (newPage: number) => {
+    if (newPage < 1 || newPage > pagination.total_pages || newPage === currentPage) return;
+    setCurrentPage(newPage);
+    fetchToolsData(selectedSlug, newPage, debouncedFilter, sortBy);
+    scrollToToolsSection();
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < pagination.total_pages) {
+      handleGoToPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      handleGoToPage(currentPage - 1);
+    }
+  };
+
   const handleSelectCategory = (slug: string) => {
     setCustomSlug(slug);
     setQuickFilter('');
@@ -60,17 +180,20 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
     return map;
   }, [categories]);
 
-  // Compute counts per category
+  // Extract counts per category directly from extension API response
   const categoryCounts = useMemo(() => {
     const counts: Record<number, number> = {};
-    initialTools.forEach((tool) => {
-      const catId = tool.data?.category_id;
-      if (catId) {
-        counts[catId] = (counts[catId] || 0) + 1;
-      }
+    categories.forEach((cat) => {
+      counts[cat.id] = cat.count ?? cat.data?.count ?? 0;
     });
     return counts;
-  }, [initialTools]);
+  }, [categories]);
+
+  // Total tools across all categories
+  const totalAllTools = useMemo(() => {
+    const sum = Object.values(categoryCounts).reduce((acc, curr) => acc + curr, 0);
+    return sum > 0 ? sum : initialPagination?.total || initialTools.length;
+  }, [categoryCounts, initialPagination, initialTools.length]);
 
   // Format Category Tabs (Only include categories with at least 1 tool)
   const categoryTabItems: CategoryTabItem[] = useMemo(() => {
@@ -85,55 +208,43 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
           count: categoryCounts[cat.id] || 0,
         };
       })
-      .filter((cat) => cat.count > 0);
+      .filter((cat) => (cat.count ?? 0) > 0);
   }, [categories, categoryCounts]);
-
-  // Map category slug to id
-  const slugToIdMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    categories.forEach((cat) => {
-      const slug = cat.data?.slug || `cat-${cat.id}`;
-      map[slug] = cat.id;
-    });
-    return map;
-  }, [categories]);
-
-  // Filter tools based on selected category & quickFilter
-  const filteredTools = useMemo(() => {
-    let result = initialTools;
-
-    if (selectedSlug !== 'all') {
-      const catId = slugToIdMap[selectedSlug];
-      if (catId) {
-        result = result.filter((t) => t.data?.category_id === catId);
-      }
-    }
-
-    if (quickFilter.trim()) {
-      const q = quickFilter.toLowerCase().trim();
-      result = result.filter((t) => {
-        const title = (t.data?.title || '').toLowerCase();
-        const desc = (t.data?.description || '').toLowerCase();
-        const badge = (t.data?.badge || '').toLowerCase();
-        return title.includes(q) || desc.includes(q) || badge.includes(q);
-      });
-    }
-
-    // Sort
-    if (sortBy === 'name') {
-      result = [...result].sort((a, b) => (a.data?.title || '').localeCompare(b.data?.title || ''));
-    } else if (sortBy === 'newest') {
-      result = [...result].sort((a, b) => (b.id || 0) - (a.id || 0));
-    }
-
-    return result;
-  }, [selectedSlug, initialTools, slugToIdMap, quickFilter, sortBy]);
 
   const activeCategoryName = useMemo(() => {
     if (selectedSlug === 'all') return '全部 AI 工具';
     const cat = categories.find((c) => (c.data?.slug || `cat-${c.id}`) === selectedSlug);
     return cat ? `${cat.data?.name}` : '工具列表';
   }, [selectedSlug, categories]);
+
+  // Compute pagination page numbers window
+  const paginationRange = useMemo(() => {
+    const totalPages = pagination.total_pages;
+    const current = currentPage;
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    const pages: (number | string)[] = [];
+    if (current <= 4) {
+      for (let i = 1; i <= 5; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    } else if (current >= totalPages - 3) {
+      pages.push(1);
+      pages.push('...');
+      for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push('...');
+      pages.push(current - 1);
+      pages.push(current);
+      pages.push(current + 1);
+      pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  }, [pagination.total_pages, currentPage]);
 
   return (
     <div className="relative min-h-screen flex flex-col bg-slate-50 dark:bg-[#06080e] text-slate-900 dark:text-slate-100 selection:bg-indigo-500/20 selection:text-indigo-600 dark:selection:bg-indigo-500/30 dark:selection:text-indigo-200 transition-colors duration-200">
@@ -150,14 +261,17 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
 
       {/* Hero Section with Integrated Category Filter */}
       <Hero
-        totalTools={initialTools.length}
+        totalTools={totalAllTools}
         categories={categoryTabItems}
         selectedSlug={selectedSlug}
         onSelectCategory={handleSelectCategory}
       />
 
       {/* Main Tool Grid Section */}
-      <main id="tools-section" className="flex-1 mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-12 sm:pb-16 w-full relative z-10">
+      <main
+        id="tools-section"
+        className="flex-1 mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-12 sm:pb-16 w-full relative z-10"
+      >
         {/* Section Header & In-page Filter */}
         <div className="mb-6 sm:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-white/[0.06]">
           <div className="flex items-center gap-3">
@@ -168,7 +282,7 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
               <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                 <span>{activeCategoryName}</span>
                 <span className="rounded-full bg-slate-200/70 dark:bg-white/[0.08] px-2 py-0.5 text-xs font-mono text-indigo-600 dark:text-indigo-300 border border-slate-300/60 dark:border-white/[0.06]">
-                  {filteredTools.length} 款
+                  {pagination.total} 款
                 </span>
                 {selectedSlug !== 'all' && (
                   <button
@@ -180,9 +294,12 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
                     <span>(清除分类)</span>
                   </button>
                 )}
+                {isLoading && (
+                  <Loader2 className="h-4 w-4 text-indigo-500 animate-spin ml-1 inline" />
+                )}
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                点击工具卡片查看详情与实操指南，或直接直达官方网站
+                点击工具卡片查看详情与实操指南，或直接直达官方网站 · 每页最多 100 款
               </p>
             </div>
           </div>
@@ -249,9 +366,13 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
         </div>
 
         {/* Tools Grid */}
-        {filteredTools.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-            {filteredTools.map((tool) => (
+        {tools.length > 0 ? (
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 transition-opacity duration-200 ${
+              isLoading ? 'opacity-60' : 'opacity-100'
+            }`}
+          >
+            {tools.map((tool) => (
               <ToolCard
                 key={tool.id}
                 tool={tool}
@@ -292,6 +413,73 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
             </div>
           </div>
         )}
+
+        {/* Pagination & Next Page Navigation */}
+        {pagination.total_pages > 1 && (
+          <div className="mt-10 sm:mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200/80 dark:border-white/[0.06] pt-6">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-mono text-center sm:text-left">
+              第 <span className="font-semibold text-indigo-600 dark:text-indigo-400">{currentPage}</span> /{' '}
+              {pagination.total_pages} 页 · 共 {pagination.total} 款工具 (每页 100 款)
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {/* Previous Page Button */}
+              <button
+                type="button"
+                onClick={handlePrevPage}
+                disabled={currentPage <= 1 || isLoading}
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                <span>上一页</span>
+              </button>
+
+              {/* Numbered Page Buttons */}
+              <div className="hidden xs:flex items-center gap-1">
+                {paginationRange.map((p, idx) => {
+                  if (p === '...') {
+                    return (
+                      <span
+                        key={`ellipsis-${idx}`}
+                        className="px-2 py-1 text-xs text-slate-400 dark:text-slate-600 select-none"
+                      >
+                        …
+                      </span>
+                    );
+                  }
+                  const pageNum = Number(p);
+                  const isActive = pageNum === currentPage;
+                  return (
+                    <button
+                      key={`page-${pageNum}`}
+                      type="button"
+                      onClick={() => handleGoToPage(pageNum)}
+                      disabled={isLoading}
+                      className={`min-w-[34px] h-[34px] flex items-center justify-center rounded-xl text-xs font-medium transition-all ${
+                        isActive
+                          ? 'bg-indigo-600 text-white font-semibold shadow-xs'
+                          : 'border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Next Page Button */}
+              <button
+                type="button"
+                onClick={handleNextPage}
+                disabled={currentPage >= pagination.total_pages || isLoading}
+                className="inline-flex items-center gap-1 rounded-xl border border-indigo-500/30 bg-indigo-50/80 dark:bg-indigo-500/10 px-3.5 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs"
+              >
+                <span>下一页</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Global Command/Search Modal */}
@@ -299,7 +487,7 @@ export function HomeClient({ categories, initialTools, systemConfig }: HomeClien
         isOpen={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
         onOpen={() => setSearchModalOpen(true)}
-        tools={initialTools}
+        tools={tools}
         categoryMap={categoryMap}
       />
 

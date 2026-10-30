@@ -40,7 +40,7 @@ export default async function ToolDetailPage({ params }: ToolPageProps) {
     getToolById(id),
     getCategories(),
     getSystemConfig(),
-    getTools({ page: 1, pageSize: 2000 }),
+    getTools({ page: 1, pageSize: 100 }),
   ]);
 
   if (!tool || !tool.data) {
