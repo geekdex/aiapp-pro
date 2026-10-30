@@ -1,0 +1,13 @@
+supportedArchitectures:
+  os:
+    - current
+    - darwin
+    - linux
+  cpu:
+    - current
+    - arm64
+    - x64
+
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
