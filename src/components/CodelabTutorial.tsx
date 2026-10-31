@@ -148,11 +148,11 @@ export function CodelabTutorial({ tutorial, toolTitle }: CodelabTutorialProps) {
           </div>
           <div className="min-w-0">
             <h2 className="text-xs sm:text-base font-bold text-slate-900 dark:text-white truncate">
-              {toolTitle} · Google Codelabs 实操指南
+              {toolTitle} · 深度实操与使用指南
             </h2>
             <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3 text-indigo-500 dark:text-indigo-400" />约 5 分钟通关
+                <Clock className="h-3 w-3 text-indigo-500 dark:text-indigo-400" />约 5 分钟掌握
               </span>
               <span>·</span>
               <span>共 {steps.length} 个实操环节</span>

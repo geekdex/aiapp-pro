@@ -12,12 +12,7 @@ interface HeroProps {
   onSelectCategory: (slug: string) => void;
 }
 
-export function Hero({
-  totalTools,
-  categories,
-  selectedSlug,
-  onSelectCategory,
-}: HeroProps) {
+export function Hero({ totalTools, categories, selectedSlug, onSelectCategory }: HeroProps) {
   const isAllActive = selectedSlug === 'all';
 
   // Safeguard: Filter out any category with count === 0
@@ -46,7 +41,7 @@ export function Hero({
   };
 
   return (
-    <section className="relative overflow-hidden pt-8 pb-5 sm:pt-14 sm:pb-8 text-center transition-colors">
+    <section className="relative overflow-hidden pt-8 pb-5 sm:pt-14 sm:pb-8 text-center transition-colors w-full max-w-full">
       {/* Background radial glow */}
       <div className="absolute inset-0 bg-radial-hero pointer-events-none" />
 
@@ -92,10 +87,10 @@ export function Hero({
           <div className="flex flex-col items-center border-x border-slate-200/80 dark:border-white/[0.08]">
             <div className="flex items-center gap-1 text-slate-900 dark:text-white font-bold text-xs sm:text-sm">
               <BookCheck className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
-              <span>Codelabs</span>
+              <span>深度实操</span>
             </div>
             <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              全流程拆解指南
+              全流程拆解指引
             </span>
           </div>
           <div className="flex flex-col items-center">
@@ -186,12 +181,10 @@ export function Hero({
               onClick={() => setIsExpanded((prev) => !prev)}
               className="inline-flex items-center gap-1 rounded-xl border border-dashed border-slate-300 dark:border-white/[0.12] bg-white/60 dark:bg-white/[0.02] px-2.5 py-1 sm:py-1.5 text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:border-indigo-500/40 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-all cursor-pointer min-h-[32px] sm:min-h-[34px]"
             >
-              <span>{isExpanded ? '收起' : `更多 (${validCategories.length - COLLAPSE_THRESHOLD})`}</span>
-              {isExpanded ? (
-                <ChevronUp className="h-3 w-3" />
-              ) : (
-                <ChevronDown className="h-3 w-3" />
-              )}
+              <span>
+                {isExpanded ? '收起' : `更多 (${validCategories.length - COLLAPSE_THRESHOLD})`}
+              </span>
+              {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
           )}
         </div>

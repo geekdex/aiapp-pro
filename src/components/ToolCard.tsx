@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, ArrowRight, BookOpen } from 'lucide-react';
+import { ExternalLink, ArrowRight } from 'lucide-react';
 import { Tool } from '@/types';
 
 interface ToolCardProps {
@@ -17,7 +17,6 @@ export function ToolCard({ tool, categoryName }: ToolCardProps) {
   const logo = data.logo;
   const description = data.description || '暂无描述信息';
   const websiteUrl = data.website_url;
-  const hasTutorial = Boolean(data.tutorial && data.tutorial.trim().length > 0);
 
   // Fallback initial letter
   const initial = title.trim().charAt(0) || 'A';
@@ -88,38 +87,24 @@ export function ToolCard({ tool, categoryName }: ToolCardProps) {
       <div className="mt-4 flex items-center justify-between border-t border-slate-100 dark:border-white/[0.06] pt-3 text-xs">
         <Link
           href={`/tool/${tool.id}`}
-          className="flex items-center gap-1 font-semibold text-slate-600 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+          className="flex items-center gap-1 font-semibold text-slate-600 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer transition-colors"
         >
           <span>查看详情</span>
           <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
         </Link>
 
-        <div className="flex items-center gap-1.5">
-          {hasTutorial && (
-            <Link
-              href={`/tool/${tool.id}#tutorial`}
-              className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 px-2 py-1 text-[11px] font-medium text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors border border-indigo-200/60 dark:border-indigo-500/20"
-              onClick={(e) => e.stopPropagation()}
-              title="查看实操教程"
-            >
-              <BookOpen className="h-3 w-3" />
-              <span>教程</span>
-            </Link>
-          )}
-
-          {websiteUrl && (
-            <a
-              href={websiteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-white/[0.04] px-2.5 py-1 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/[0.1] hover:text-slate-900 dark:hover:text-white transition-all border border-slate-200/80 dark:border-white/[0.06]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span>访问官网</span>
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
-        </div>
+        {websiteUrl && (
+          <a
+            href={websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-white/[0.04] px-2.5 py-1 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/[0.1] hover:text-slate-900 dark:hover:text-white transition-all border border-slate-200/80 dark:border-white/[0.06] cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span>访问官网</span>
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
       </div>
     </div>
   );

@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search') || undefined;
   const sortBy = searchParams.get('sort_by') || undefined;
   const sortOrder = (searchParams.get('sort_order') as 'asc' | 'desc') || undefined;
+  const fields = searchParams.get('fields') || undefined;
+  const excludeFields = searchParams.get('exclude_fields') || undefined;
 
   const result = await getTools({
     page: isNaN(page) ? 1 : page,
@@ -23,6 +25,8 @@ export async function GET(request: NextRequest) {
     search,
     sortBy,
     sortOrder,
+    fields,
+    excludeFields,
   });
 
   return NextResponse.json(result);

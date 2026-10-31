@@ -6,7 +6,7 @@ import { HomeClient } from '@/components/HomeClient';
 export const metadata: Metadata = {
   title: 'AIAPP.PRO - 全球 AI 工具导航与深度实战指南',
   description:
-    '汇聚 1,150+ 款全球顶尖 AI 工具、大语言模型与智能体应用，提供 Google Codelabs 风格全流程使用教程与评测，让 AI 真正赋能生产力。',
+    '汇聚 1,150+ 款全球顶尖 AI 工具、大语言模型与智能体应用，提供全流程深度实操指南与评测，让 AI 真正赋能生产力。',
   keywords: [
     'AI工具导航',
     'AI导航',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: 'AIAPP.PRO - 全球 AI 工具导航与深度实战指南',
-    description: '汇聚 1,150+ 款全球顶尖 AI 工具与深度实战教程。',
+    description: '汇聚 1,150+ 款全球顶尖 AI 工具与深度实操指南。',
     url: 'https://aiapp.pro',
     siteName: 'AIAPP.PRO',
     locale: 'zh_CN',

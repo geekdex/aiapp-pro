@@ -41,11 +41,17 @@
   --text-muted: #64748b;
 }
 
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  overflow-x: hidden;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   transition:
@@ -107,6 +113,8 @@ body {
   left: 15%;
   width: 650px;
   height: 650px;
+  max-width: 90vw;
+  max-height: 90vw;
   background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
   filter: blur(80px);
   pointer-events: none;
@@ -125,6 +133,8 @@ body {
   right: 8%;
   width: 550px;
   height: 550px;
+  max-width: 90vw;
+  max-height: 90vw;
   background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
   filter: blur(90px);
   pointer-events: none;
@@ -143,6 +153,8 @@ body {
   left: 8%;
   width: 600px;
   height: 600px;
+  max-width: 90vw;
+  max-height: 90vw;
   background: radial-gradient(circle, rgba(6, 182, 212, 0.07) 0%, rgba(0, 0, 0, 0) 70%);
   filter: blur(80px);
   pointer-events: none;

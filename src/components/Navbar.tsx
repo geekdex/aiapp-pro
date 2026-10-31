@@ -25,7 +25,7 @@ export function Navbar({ onOpenSearch }: NavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-white/[0.08] bg-white/85 dark:bg-[#070913]/90 backdrop-blur-xl transition-colors duration-200">
+    <header className="sticky top-0 z-40 w-full max-w-full overflow-x-clip border-b border-slate-200/80 dark:border-white/[0.08] bg-white/85 dark:bg-[#070913]/90 backdrop-blur-xl transition-colors duration-200">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
@@ -78,7 +78,7 @@ export function Navbar({ onOpenSearch }: NavbarProps) {
             aria-label="搜索工具"
           >
             <Search className="h-4 w-4 text-slate-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
-            <span className="hidden sm:inline">搜索工具、模型、教程...</span>
+            <span className="hidden sm:inline">搜索工具、模型、特性...</span>
             <span className="sm:hidden text-xs font-medium">搜索</span>
             <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded bg-white dark:bg-white/[0.08] px-1.5 py-0.5 font-mono text-[10px] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/[0.06] shadow-xs">
               {shortcutKey}

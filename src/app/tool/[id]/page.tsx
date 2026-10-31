@@ -1,7 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getToolById, getCategories, getRelatedTools, getSystemConfig, getTools } from '@/lib/api';
+import { getToolById, getCategories, getRelatedTools, getSystemConfig } from '@/lib/api';
 import { ToolDetailClient } from '@/components/ToolDetailClient';
 
 interface ToolPageProps {
@@ -36,18 +36,17 @@ export async function generateMetadata({ params }: ToolPageProps): Promise<Metad
 
 export default async function ToolDetailPage({ params }: ToolPageProps) {
   const { id } = await params;
-  const [tool, categories, systemConfig, toolsResult] = await Promise.all([
+  const [tool, categories, systemConfig] = await Promise.all([
     getToolById(id),
     getCategories(),
     getSystemConfig(),
-    getTools({ page: 1, pageSize: 100 }),
   ]);
 
   if (!tool || !tool.data) {
     notFound();
   }
 
-  // Fetch related tools
+  // Fetch only the lightweight related tools for this category (4 items)
   const relatedTools = await getRelatedTools(tool.data.category_id, tool.id, 4);
 
   return (
@@ -55,7 +54,7 @@ export default async function ToolDetailPage({ params }: ToolPageProps) {
       tool={tool}
       categories={categories}
       systemConfig={systemConfig}
-      allTools={toolsResult.items}
+      allTools={relatedTools}
       relatedTools={relatedTools}
     />
   );

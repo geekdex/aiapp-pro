@@ -95,7 +95,12 @@ async function foundryFetch<T>(path: string, options: RequestInit = {}): Promise
     }
 
     return json.data;
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        `[Foundry API] Failed to reach backend at ${url}: ${(err as Error)?.message || err}`
+      );
+    }
     return null;
   }
 }
@@ -133,7 +138,12 @@ async function foundryExtFetch<T>(path: string, options: RequestInit = {}): Prom
     }
 
     return json.data;
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        `[Foundry Ext API] Failed to reach backend at ${url}: ${(err as Error)?.message || err}`
+      );
+    }
     return null;
   }
 }
@@ -188,6 +198,8 @@ export async function getTools(
     search?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    fields?: string;
+    excludeFields?: string;
   } = {}
 ): Promise<PaginatedData<Tool>> {
   const page = Math.max(1, params.page || 1);
@@ -207,6 +219,15 @@ export async function getTools(
   }
   if (params.sortBy) queryParams.set('sort_by', params.sortBy);
   if (params.sortOrder) queryParams.set('sort_order', params.sortOrder);
+
+  // Field projection: By default exclude heavy tutorial and video fields from tool listings
+  if (params.fields) {
+    queryParams.set('fields', params.fields);
+  } else if (params.excludeFields) {
+    queryParams.set('exclude_fields', params.excludeFields);
+  } else {
+    queryParams.set('exclude_fields', 'tutorial,video,videoes');
+  }
 
   // 1. Try extension API first
   const extData = await foundryExtFetch<PaginatedData<Tool>>(`/tools?${queryParams.toString()}`);
@@ -250,35 +271,66 @@ export async function getTools(
 }
 
 /**
- * Fetch a single tool by its ID
+ * Check whether a tool possesses a genuine, substantial tutorial
+ * (Not empty, not a duplicate of description, and with sufficient tutorial depth)
+ */
+export function hasValidTutorial(
+  data?: { tutorial?: string; description?: string } | null
+): boolean {
+  if (!data?.tutorial) return false;
+  const tut = data.tutorial.trim();
+  if (tut.length < 120) return false;
+  if (data.description && tut === data.description.trim()) return false;
+  return true;
+}
+
+/**
+ * Fetch a single tool by its ID or slug.
+ * Prioritizes the ultra-fast public Extension API endpoint (/api/ext/aiapp/tools/:id),
+ * with fallback to AutoCRUD endpoint and local mock data.
  */
 export async function getToolById(id: string | number): Promise<Tool | null> {
+  // 1. Try public extension API first (fastest, unauthenticated direct DB query)
+  const extRecord = await foundryExtFetch<Tool>(`/tools/${id}`);
+  if (extRecord && extRecord.data) {
+    return extRecord;
+  }
+
+  // 2. Fallback to standard AutoCRUD endpoint
   const record = await foundryFetch<Tool>(`/tools/${id}`);
   if (record && record.data) {
     return record;
   }
 
+  // 3. Fallback to mock data if backend is offline
   const numericId = Number(id);
   const fallback = FALLBACK_TOOLS.find((t) => t.id === numericId || t.data?.slug === String(id));
   return fallback || null;
 }
 
 /**
- * Get related tools in the same category
+ * Get related tools in the same category with minimal network payload
  */
 export async function getRelatedTools(
   categoryId: number,
   currentToolId: number,
-  limit: number = 6
+  limit: number = 4
 ): Promise<Tool[]> {
-  const res = await getTools({ page: 1, pageSize: 60 });
-  const filtered = res.items.filter(
-    (t) => (t.data?.category_id === categoryId || !categoryId) && t.id !== currentToolId
-  );
-  if (filtered.length === 0) {
-    return res.items.filter((t) => t.id !== currentToolId).slice(0, limit);
+  // Fetch only the small targeted subset for the specific category
+  const res = await getTools({
+    page: 1,
+    pageSize: limit + 2,
+    categoryId: categoryId || undefined,
+  });
+
+  const filtered = res.items.filter((t) => t.id !== currentToolId).slice(0, limit);
+  if (filtered.length > 0) {
+    return filtered;
   }
-  return filtered.slice(0, limit);
+
+  // Fallback to latest tools if current category has no other tools
+  const fallbackRes = await getTools({ page: 1, pageSize: limit + 2 });
+  return fallbackRes.items.filter((t) => t.id !== currentToolId).slice(0, limit);
 }
 
 /**

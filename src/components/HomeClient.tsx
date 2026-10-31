@@ -247,14 +247,16 @@ export function HomeClient({
   }, [pagination.total_pages, currentPage]);
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-slate-50 dark:bg-[#06080e] text-slate-900 dark:text-slate-100 selection:bg-indigo-500/20 selection:text-indigo-600 dark:selection:bg-indigo-500/30 dark:selection:text-indigo-200 transition-colors duration-200">
+    <div className="relative min-h-screen flex flex-col bg-slate-50 dark:bg-[#06080e] text-slate-900 dark:text-slate-100 selection:bg-indigo-500/20 selection:text-indigo-600 dark:selection:bg-indigo-500/30 dark:selection:text-indigo-200 transition-colors duration-200 w-full max-w-full overflow-x-clip">
       {/* Background ambient grid pattern */}
       <div className="fixed inset-0 bg-grid-pattern pointer-events-none opacity-60 z-0" />
 
-      {/* Ambient glowing orbs */}
-      <div className="bg-ambient-orb-1" />
-      <div className="bg-ambient-orb-2" />
-      <div className="bg-ambient-orb-3" />
+      {/* Ambient glowing orbs safely clipped within viewport */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="bg-ambient-orb-1" />
+        <div className="bg-ambient-orb-2" />
+        <div className="bg-ambient-orb-3" />
+      </div>
 
       {/* Navbar */}
       <Navbar onOpenSearch={() => setSearchModalOpen(true)} />
@@ -418,8 +420,11 @@ export function HomeClient({
         {pagination.total_pages > 1 && (
           <div className="mt-10 sm:mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200/80 dark:border-white/[0.06] pt-6">
             <div className="text-xs text-slate-500 dark:text-slate-400 font-mono text-center sm:text-left">
-              第 <span className="font-semibold text-indigo-600 dark:text-indigo-400">{currentPage}</span> /{' '}
-              {pagination.total_pages} 页 · 共 {pagination.total} 款工具 (每页 100 款)
+              第{' '}
+              <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                {currentPage}
+              </span>{' '}
+              / {pagination.total_pages} 页 · 共 {pagination.total} 款工具 (每页 100 款)
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -428,14 +433,14 @@ export function HomeClient({
                 type="button"
                 onClick={handlePrevPage}
                 disabled={currentPage <= 1 || isLoading}
-                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs"
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
                 <span>上一页</span>
               </button>
 
               {/* Numbered Page Buttons */}
-              <div className="hidden xs:flex items-center gap-1">
+              <div className="hidden sm:flex items-center gap-1">
                 {paginationRange.map((p, idx) => {
                   if (p === '...') {
                     return (
@@ -455,7 +460,7 @@ export function HomeClient({
                       type="button"
                       onClick={() => handleGoToPage(pageNum)}
                       disabled={isLoading}
-                      className={`min-w-[34px] h-[34px] flex items-center justify-center rounded-xl text-xs font-medium transition-all ${
+                      className={`min-w-[34px] h-[34px] flex items-center justify-center rounded-xl text-xs font-medium cursor-pointer transition-all ${
                         isActive
                           ? 'bg-indigo-600 text-white font-semibold shadow-xs'
                           : 'border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white'
@@ -472,7 +477,7 @@ export function HomeClient({
                 type="button"
                 onClick={handleNextPage}
                 disabled={currentPage >= pagination.total_pages || isLoading}
-                className="inline-flex items-center gap-1 rounded-xl border border-indigo-500/30 bg-indigo-50/80 dark:bg-indigo-500/10 px-3.5 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs"
+                className="inline-flex items-center gap-1 rounded-xl border border-indigo-500/30 bg-indigo-50/80 dark:bg-indigo-500/10 px-3.5 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs"
               >
                 <span>下一页</span>
                 <ChevronRight className="h-3.5 w-3.5" />

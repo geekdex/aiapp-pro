@@ -23,7 +23,7 @@ export function Footer({ systemConfig }: FooterProps) {
   const showPsb = Boolean(psbNo?.trim() && psbUrl?.trim());
 
   return (
-    <footer className="w-full border-t border-slate-200/80 dark:border-white/[0.08] bg-slate-100/70 dark:bg-[#05070c] py-8 sm:py-10 text-slate-600 dark:text-slate-400 relative z-10 transition-colors duration-200">
+    <footer className="w-full max-w-full overflow-x-clip border-t border-slate-200/80 dark:border-white/[0.08] bg-slate-100/70 dark:bg-[#05070c] py-8 sm:py-10 text-slate-600 dark:text-slate-400 relative z-10 transition-colors duration-200">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Top: Brand & Bright Foundry Entry */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-white/[0.06]">

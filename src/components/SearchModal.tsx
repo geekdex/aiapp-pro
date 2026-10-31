@@ -16,6 +16,7 @@ interface SearchModalProps {
 export function SearchModal({ isOpen, onClose, onOpen, tools, categoryMap }: SearchModalProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [remoteResults, setRemoteResults] = useState<Tool[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -29,9 +30,34 @@ export function SearchModal({ isOpen, onClose, onOpen, tools, categoryMap }: Sea
 
   const handleClose = React.useCallback(() => {
     setQuery('');
+    setRemoteResults([]);
     setSelectedIndex(0);
     onClose();
   }, [onClose]);
+
+  // Debounced server search across the full database
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!isOpen || !trimmed) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/tools?search=${encodeURIComponent(trimmed)}&page_size=15`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.items && Array.isArray(json.items)) {
+            setRemoteResults(json.items);
+          }
+        }
+      } catch {
+        // Fallback to local
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [query, isOpen]);
 
   // Global Esc & keyboard shortcut listener (Mac Command+K & Windows/Linux Ctrl+K)
   useEffect(() => {
@@ -57,20 +83,23 @@ export function SearchModal({ isOpen, onClose, onOpen, tools, categoryMap }: Sea
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isOpen, handleClose, onOpen]);
 
-  // Filter tools
+  // Filter tools: merge local immediate matches with full database remote results
   const filteredTools = useMemo(() => {
     if (!query.trim()) return tools.slice(0, 8);
     const q = query.toLowerCase().trim();
-    return tools
-      .filter((t) => {
-        const title = (t.data?.title || '').toLowerCase();
-        const desc = (t.data?.description || '').toLowerCase();
-        const badge = (t.data?.badge || '').toLowerCase();
-        const catName = (categoryMap[t.data?.category_id] || '').toLowerCase();
-        return title.includes(q) || desc.includes(q) || badge.includes(q) || catName.includes(q);
-      })
-      .slice(0, 15);
-  }, [query, tools, categoryMap]);
+    const local = tools.filter((t) => {
+      const title = (t.data?.title || '').toLowerCase();
+      const desc = (t.data?.description || '').toLowerCase();
+      const badge = (t.data?.badge || '').toLowerCase();
+      const catName = (categoryMap[t.data?.category_id] || '').toLowerCase();
+      return title.includes(q) || desc.includes(q) || badge.includes(q) || catName.includes(q);
+    });
+
+    const map = new Map<number, Tool>();
+    local.forEach((t) => map.set(t.id, t));
+    remoteResults.forEach((t) => map.set(t.id, t));
+    return Array.from(map.values()).slice(0, 15);
+  }, [query, tools, categoryMap, remoteResults]);
 
   // Handle arrow key navigation & Enter
   const handleKeyDown = (e: React.KeyboardEvent) => {

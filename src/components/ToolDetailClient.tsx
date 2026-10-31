@@ -9,6 +9,7 @@ import { ToolCard } from '@/components/ToolCard';
 import { CodelabTutorial } from '@/components/CodelabTutorial';
 import { SearchModal } from '@/components/SearchModal';
 import { hexToRgba } from '@/lib/utils';
+import { hasValidTutorial } from '@/lib/api';
 import {
   ExternalLink,
   ChevronRight,
@@ -56,6 +57,19 @@ export function ToolDetailClient({
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, []);
 
+  // Smooth scroll to tutorial section if user arrived with #tutorial hash
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#tutorial') {
+      const timer = setTimeout(() => {
+        const el = document.getElementById('tutorial');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Map category_id to Category name
   const categoryMap = useMemo(() => {
     const map: Record<number, string> = {};
@@ -70,8 +84,8 @@ export function ToolDetailClient({
   const categoryName = cat?.data?.name || 'AI工具';
   const categorySlug = cat?.data?.slug || 'all';
 
-  // Check if tutorial exists and is not empty
-  const hasTutorial = Boolean(data.tutorial && data.tutorial.trim().length > 0);
+  // Check if tutorial exists and is not empty or just a summary
+  const hasTutorial = hasValidTutorial(data);
 
   const badgeColor = data.badgeColor || '#6366f1';
   const badgeBg = hexToRgba(badgeColor, 0.12);
@@ -82,13 +96,15 @@ export function ToolDetailClient({
     : '2025-01-01';
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-slate-50 dark:bg-[#06080e] text-slate-900 dark:text-slate-100 selection:bg-indigo-500/20 selection:text-indigo-600 dark:selection:bg-indigo-500/30 dark:selection:text-indigo-200 transition-colors duration-200">
+    <div className="relative min-h-screen flex flex-col bg-slate-50 dark:bg-[#06080e] text-slate-900 dark:text-slate-100 selection:bg-indigo-500/20 selection:text-indigo-600 dark:selection:bg-indigo-500/30 dark:selection:text-indigo-200 transition-colors duration-200 w-full max-w-full overflow-x-clip">
       {/* Background ambient grid pattern */}
       <div className="fixed inset-0 bg-grid-pattern pointer-events-none opacity-60 z-0" />
 
-      {/* Ambient glowing orbs */}
-      <div className="bg-ambient-orb-1" />
-      <div className="bg-ambient-orb-2" />
+      {/* Ambient glowing orbs safely clipped within viewport */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div className="bg-ambient-orb-1" />
+        <div className="bg-ambient-orb-2" />
+      </div>
 
       {/* Navbar with interactive search modal trigger */}
       <Navbar onOpenSearch={() => setSearchModalOpen(true)} />
@@ -183,7 +199,7 @@ export function ToolDetailClient({
                       className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-300 hover:underline font-medium"
                     >
                       <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
-                      <span>含 Codelabs 深度指南</span>
+                      <span>含深度实操指南</span>
                     </a>
                   )}
                 </div>

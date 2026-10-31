@@ -1,7 +1,9 @@
+import { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { NavigationProgressBar } from '@/components/NavigationProgressBar';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -57,7 +59,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitializerScript }} />
       </head>
-      <body className="min-h-full flex flex-col bg-slate-50 dark:bg-[#06080e] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200">
+      <body className="min-h-full flex flex-col bg-slate-50 dark:bg-[#06080e] text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 w-full max-w-full overflow-x-clip">
+        <Suspense fallback={null}>
+          <NavigationProgressBar />
+        </Suspense>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
