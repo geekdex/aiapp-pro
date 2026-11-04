@@ -10,6 +10,7 @@ export interface Category {
   model_id?: number;
   system_id?: string;
   model_slug?: string;
+  sort?: number;
   data: CategoryData;
   created_at?: string;
   updated_at?: string;
@@ -46,6 +47,7 @@ export interface Tool {
   model_id: number;
   system_id: string;
   model_slug: string;
+  sort?: number;
   data: ToolData;
   created_at: string;
   updated_at: string;

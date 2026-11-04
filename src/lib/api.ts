@@ -160,6 +160,7 @@ export async function getCategories(): Promise<Category[]> {
       model_id: 1,
       system_id: 'aiapp',
       model_slug: 'categories',
+      sort: c.sort_order,
       count: c.count,
       data: {
         name: c.name,
@@ -180,8 +181,8 @@ export async function getCategories(): Promise<Category[]> {
   }
 
   return [...data.items].sort((a, b) => {
-    const orderA = a.data?.sort_order ?? a.id;
-    const orderB = b.data?.sort_order ?? b.id;
+    const orderA = a.sort ?? a.data?.sort_order ?? a.id;
+    const orderB = b.sort ?? b.data?.sort_order ?? b.id;
     return orderA - orderB;
   });
 }
